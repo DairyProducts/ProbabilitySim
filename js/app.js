@@ -1,242 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ProbabilitySim</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,500;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #fff; color: #1a1a1a; font-family: 'Times New Roman', monospace; min-height: 100vh; }
-
-header { padding: 28px 36px 16px; border-bottom: 1px solid #e5e5e5; display: flex; align-items: baseline; gap: 16px; }
-header h1 { font-family: 'Times New Roman', serif; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.5px; }
-header p { color: #999; font-size: 0.68rem; }
-
-.app { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 80px); }
-
-.sidebar { border-right: 1px solid #e5e5e5; padding: 14px 12px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
-
-.scenario-btn {
-  display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: none;
-  background: transparent; border-radius: 6px; cursor: pointer; text-align: left;
-  transition: background .12s; font-family: inherit; color: #1a1a1a; font-size: 0.78rem;
-}
-.scenario-btn:hover { background: #f5f5f5; }
-.scenario-btn.active { background: #1a1a1a; color: #fff; }
-
-.main { padding: 20px 28px; overflow-y: auto; max-height: calc(100vh - 80px); }
-
-.tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 18px; }
-.tab {
-  padding: 9px 18px; font-family: inherit; font-size: 0.7rem; font-weight: 500;
-  border: none; background: none; cursor: pointer; color: #aaa;
-  border-bottom: 2px solid transparent; transition: all .12s;
-  letter-spacing: .4px; text-transform: uppercase;
-}
-.tab:hover { color: #1a1a1a; }
-.tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
-
-.tab-content { display: none; }
-.tab-content.active { display: block; }
-
-.controls { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
-.cg { display: flex; flex-direction: column; gap: 4px; }
-.cg label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1px; color: #999; }
-
-input[type="range"] { -webkit-appearance: none; width: 120px; height: 3px; background: #ddd; border-radius: 2px; outline: none; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #1a1a1a; cursor: pointer; }
-.vd { font-size: 0.78rem; min-width: 36px; font-weight: 500; }
-
-.btn {
-  font-family: inherit; padding: 7px 18px; border: 1px solid #1a1a1a;
-  background: transparent; color: #1a1a1a; border-radius: 6px; cursor: pointer;
-  font-size: 0.7rem; letter-spacing: .4px; text-transform: uppercase; transition: all .12s;
-}
-.btn:hover { background: #1a1a1a; color: #fff; }
-.btn.on { background: #1a1a1a; color: #fff; }
-.btn.sec { border-color: #ddd; color: #999; }
-.btn.sec:hover { background: #f5f5f5; color: #1a1a1a; }
-
-.chart-wrap { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px 18px; position: relative; margin-bottom: 14px; }
-.chart-info { font-size: 0.66rem; color: #999; margin-bottom: 10px; }
-.chart-info span { color: #1a1a1a; font-weight: 500; }
-canvas#chart { width: 100% !important; height: 240px !important; display: block; }
-
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
-.sc { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 10px; text-align: center; }
-.sc .sl { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 3px; }
-.sc .sv { font-family: 'Source Serif 4', serif; font-size: 1.2rem; font-weight: 700; }
-
-.theory { border-top: 1px solid #e5e5e5; padding-top: 14px; }
-.theory h3 { font-family: 'Source Serif 4', serif; font-weight: 500; font-size: 0.88rem; margin-bottom: 5px; }
-.theory p { font-size: 0.7rem; color: #777; line-height: 1.7; }
-.theory .f { display: inline-block; background: #fafafa; padding: 5px 12px; border-radius: 4px; margin-top: 6px; font-size: 0.72rem; border: 1px solid #e5e5e5; }
-
-.vis-area { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.vis-stage { width: 100%; max-width: 560px; aspect-ratio: 4/3; background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; position: relative; overflow: hidden; }
-canvas#vcanvas { width: 100% !important; height: 100% !important; display: block; }
-.vis-result { font-family: 'Source Serif 4', serif; font-size: 1.2rem; font-weight: 700; min-height: 30px; text-align: center; }
-.vis-probability { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: #888; min-height: 20px; text-align: center; }
-
-@media (max-width: 700px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #e5e5e5; }
-  .stats-row { grid-template-columns: repeat(2, 1fr); }
-  .main { max-height: none; }
-  header { flex-direction: column; gap: 4px; }
-}
-</style>
-</head>
-<body>
-
-<header>
-  <h1>ProbabilitySim</h1>
-  <p>Simulate probability distributions with real world examples!</p>
-</header>
-
-<div class="app">
-  <div class="sidebar" id="sidebar"></div>
-  <div class="main" id="main"></div>
-</div>
-
-<script>
-// ── Math helpers ──
-function lnGamma(z) {
-  if (z <= 0) return 0;
-  const coeff = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
-  let y = z, tmp = z + 5.5;
-  tmp -= (z + 0.5) * Math.log(tmp);
-  let ser = 1.000000000190015;
-  for (const c of coeff) ser += c / ++y;
-  return -tmp + Math.log(2.5066282746310005 * ser / z);
-}
-
-function binomialPMF(k, n, p) {
-  if (k < 0 || k > n) return 0;
-  return Math.exp(lnGamma(n + 1) - lnGamma(k + 1) - lnGamma(n - k + 1) + k * Math.log(p) + (n - k) * Math.log(1 - p));
-}
-
-function poissonPMF(k, lam) {
-  if (k < 0) return 0;
-  return Math.exp(k * Math.log(lam) - lam - lnGamma(k + 1));
-}
-
-function normalPDF(x, mu, sigma) {
-  const z = (x - mu) / sigma;
-  return (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * z * z);
-}
-
-function normalCDF(x) {
-  const t = 1 / (1 + 0.2316419 * Math.abs(x));
-  const d = 0.3989422804014327 * Math.exp(-x * x / 2);
-  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.3302744))));
-  return x > 0 ? 1 - p : p;
-}
-
-function diceSumProb(total, n, sides) {
-  let prob = 0;
-  const k = total - n;
-  for (let j = 0; j <= Math.floor(k / sides); j++) {
-    const sign = j % 2 === 0 ? 1 : -1;
-    prob += sign * Math.exp(
-      lnGamma(n + 1) - lnGamma(j + 1) - lnGamma(n - j + 1) +
-      lnGamma(k - j * sides + n) - lnGamma(k - j * sides + 1) - lnGamma(n)
-    );
-  }
-  return Math.max(0, prob / Math.pow(sides, n));
-}
-
-function formatProb(p) {
-  if (p >= 0.01) return (p * 100).toFixed(2) + '%';
-  if (p >= 0.0001) return (p * 100).toFixed(4) + '%';
-  return p.toExponential(2);
-}
-
-function boxMuller(mu, sigma) {
-  return mu + sigma * Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
-}
-
-// ── Canvas helpers ──
-function roundedRect(ctx, x, y, w, h, r) {
-  if (w <= 0 || h <= 0) return;
-  r = Math.min(r, h / 2, w / 2);
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
-}
-
-function $(id) { return document.getElementById(id); }
-
-// ── Scenario definitions ──
-const scenarios = [
-  {
-    id: 'coin', name: 'Coin Flips', dist: 'Binomial', color: '#3b82f6',
-    params: [
-      { key: 'n', label: 'Coins per trial', min: 1, max: 60, def: 10, step: 1 },
-      { key: 'p', label: 'P(heads)', min: 0.01, max: 0.99, def: 0.5, step: 0.01 },
-    ],
-    generate: p => { let h = 0; for (let i = 0; i < p.n; i++) if (Math.random() < p.p) h++; return h; },
-    bins: p => p.n + 1,
-    range: p => [0, p.n],
-    theoryCurve: (x, p) => binomialPMF(x, p.n, p.p),
-    theory: { title: 'Binomial Distribution', desc: 'Repeat a yes/no experiment n times. The count of successes follows a Binomial distribution — seen in coin flips, A/B tests, and polling.', formula: 'P(X=k) = C(n,k) · p^k · (1-p)^(n-k)' },
-  },
-  {
-    id: 'wait', name: 'Café Wait', dist: 'Exponential', color: '#f59e0b',
-    params: [{ key: 'lambda', label: 'Avg coffees/min (λ)', min: 0.1, max: 3, def: 0.5, step: 0.05 }],
-    generate: p => -Math.log(1 - Math.random()) / p.lambda,
-    bins: () => 35,
-    range: p => [0, 10 / p.lambda],
-    theoryCurve: (x, p) => x < 0 ? 0 : p.lambda * Math.exp(-p.lambda * x),
-    theory: { title: 'Exponential Distribution', desc: "Models time between events — café waits, website clicks, component lifespans. It's memoryless: the chance of waiting another minute never changes.", formula: 'f(x) = λ · e^(-λx)' },
-  },
-  {
-    id: 'height', name: 'Human Heights', dist: 'Normal', color: '#22c55e',
-    params: [
-      { key: 'mu', label: 'Mean (cm)', min: 140, max: 200, def: 170, step: 1 },
-      { key: 'sigma', label: 'Std dev (cm)', min: 2, max: 20, def: 7, step: 0.5 },
-    ],
-    generate: p => boxMuller(p.mu, p.sigma),
-    bins: () => 35,
-    range: p => [p.mu - 4 * p.sigma, p.mu + 4 * p.sigma],
-    theoryCurve: (x, p) => normalPDF(x, p.mu, p.sigma),
-    theory: { title: 'Normal Distribution', desc: 'The bell curve. Heights, test scores, measurement errors — the Central Limit Theorem guarantees that averages converge here.', formula: 'f(x) = (1/σ√2π) · e^(-(x-μ)²/2σ²)' },
-  },
-  {
-    id: 'defects', name: 'Factory Defects', dist: 'Poisson', color: '#ef4444',
-    params: [{ key: 'lambda', label: 'Avg defects (λ)', min: 0.5, max: 25, def: 4, step: 0.5 }],
-    generate: p => { let L = Math.exp(-p.lambda), k = 0, pr = 1; do { k++; pr *= Math.random(); } while (pr > L); return k - 1; },
-    bins: p => Math.min(Math.ceil(p.lambda * 3) + 5, 35),
-    range: p => [0, Math.ceil(p.lambda * 3) + 4],
-    theoryCurve: (x, p) => poissonPMF(Math.round(x), p.lambda),
-    theory: { title: 'Poisson Distribution', desc: 'Counts of rare independent events: typos per page, server errors per hour, defects per batch.', formula: 'P(X=k) = (λ^k · e^(-λ)) / k!' },
-  },
-  {
-    id: 'dice', name: 'Dice Sum', dist: 'Central Limit', color: '#8b5cf6',
-    params: [
-      { key: 'n', label: 'Number of dice', min: 1, max: 20, def: 5, step: 1 },
-      { key: 'sides', label: 'Sides', min: 4, max: 20, def: 6, step: 1 },
-    ],
-    generate: p => { let s = 0; for (let i = 0; i < p.n; i++) s += Math.floor(Math.random() * p.sides) + 1; return s; },
-    bins: p => Math.min(p.n * p.sides - p.n + 1, 45),
-    range: p => [p.n, p.n * p.sides],
-    theoryCurve: (x, p) => {
-      const mu = p.n * (p.sides + 1) / 2;
-      const sig = Math.sqrt(p.n * (p.sides ** 2 - 1) / 12);
-      return normalPDF(x, mu, sig);
-    },
-    theory: { title: 'Central Limit Theorem', desc: 'Sum enough independent random variables and the result becomes normal — regardless of original shape. Add more dice to watch it emerge.', formula: 'Sum ≈ Normal(n·(s+1)/2, n·(s²-1)/12)' },
-  },
-];
-
 // ── State ──
 let current = scenarios[0];
 let params = {};
@@ -246,12 +7,23 @@ let chartCanvas, chartCtx;
 let activeTab = 'distribution';
 let visCanvas, visCtx, visAnimating = false, autoMode = false, autoTimer = null;
 
-// ── Slider HTML helper ──
-function sliderHTML(p, onChange) {
-  return `<div class="cg"><label>${p.label}</label><div style="display:flex;align-items:center;gap:8px">
-    <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${params[p.key]}"
-      oninput="${onChange}('${p.key}',this.value);this.nextElementSibling.textContent=this.value">
-    <span class="vd">${params[p.key]}</span></div></div>`;
+// ── Slider template helper ──
+function createSliderElement(p, onChange) {
+  const fragment = templateLoader.cloneTemplate('slider');
+  const root = fragment.querySelector('.cg');
+  const label = root.querySelector('label');
+  const input = root.querySelector('input[type="range"]');
+  const value = root.querySelector('.vd');
+
+  label.textContent = p.label;
+  input.min = p.min;
+  input.max = p.max;
+  input.step = p.step;
+  input.value = params[p.key];
+  input.setAttribute('oninput', `${onChange}('${p.key}',this.value);this.nextElementSibling.textContent=this.value`);
+  value.textContent = params[p.key];
+
+  return root;
 }
 
 // ── Init & navigation ──
@@ -287,49 +59,29 @@ function resetHistogram() {
 // ── Main render ──
 function renderMain() {
   const s = current;
-  $('main').innerHTML = `
-    <div class="tab-bar">
-      <button class="tab ${activeTab === 'distribution' ? 'active' : ''}" onclick="switchTab('distribution')">Distribution</button>
-      <button class="tab ${activeTab === 'visual' ? 'active' : ''}" onclick="switchTab('visual')">Visual Simulation</button>
-    </div>
+  const mainFragment = templateLoader.cloneTemplate('main');
 
-    <div class="tab-content ${activeTab === 'distribution' ? 'active' : ''}" id="tab-dist">
-      <div class="controls">
-        ${s.params.map(p => sliderHTML(p, 'updateParam')).join('')}
-        <div class="cg"><label>Speed</label><div style="display:flex;align-items:center;gap:8px">
-          <input type="range" min="1" max="100" value="10" id="spd"
-            oninput="$('spd-v').textContent=this.value">
-          <span class="vd" id="spd-v">10</span></div></div>
-        <button class="btn" id="run-btn" onclick="toggleDistribution()">▶ Run</button>
-        <button class="btn sec" onclick="resetAll()">Reset</button>
-      </div>
-      <div class="chart-wrap">
-        <div class="chart-info">${s.name} · <span>${s.dist}</span> · Samples: <span id="sc">0</span></div>
-        <canvas id="chart"></canvas>
-      </div>
-      <div class="stats-row">
-        <div class="sc"><div class="sl">Mean</div><div class="sv" id="s-mean">—</div></div>
-        <div class="sc"><div class="sl">Std Dev</div><div class="sv" id="s-std">—</div></div>
-        <div class="sc"><div class="sl">Median</div><div class="sv" id="s-med">—</div></div>
-        <div class="sc"><div class="sl">Samples</div><div class="sv" id="s-n">0</div></div>
-      </div>
-      <div class="theory">
-        <h3>${s.theory.title}</h3><p>${s.theory.desc}</p><div class="f">${s.theory.formula}</div>
-      </div>
-    </div>
+  const distButton = mainFragment.querySelector('#tab-distribution-btn');
+  const visualButton = mainFragment.querySelector('#tab-visual-btn');
+  const distTab = mainFragment.querySelector('#tab-dist');
+  const visualTab = mainFragment.querySelector('#tab-vis');
+  distButton.classList.toggle('active', activeTab === 'distribution');
+  visualButton.classList.toggle('active', activeTab === 'visual');
+  distTab.classList.toggle('active', activeTab === 'distribution');
+  visualTab.classList.toggle('active', activeTab === 'visual');
 
-    <div class="tab-content ${activeTab === 'visual' ? 'active' : ''}" id="tab-vis">
-      <div class="vis-area">
-        <div class="controls">
-          ${s.params.map(p => sliderHTML(p, 'updateVisParam')).join('')}
-          <button class="btn" onclick="runVisual()">▶ Simulate Once</button>
-          <button class="btn sec" id="auto-btn" onclick="toggleAuto()">Auto</button>
-        </div>
-        <div class="vis-stage"><canvas id="vcanvas"></canvas></div>
-        <div class="vis-result" id="vr"></div>
-        <div class="vis-probability" id="vp"></div>
-      </div>
-    </div>`;
+  mainFragment.querySelector('#scenario-name').textContent = s.name;
+  mainFragment.querySelector('#scenario-dist').textContent = s.dist;
+  mainFragment.querySelector('#theory-title').textContent = s.theory.title;
+  mainFragment.querySelector('#theory-desc').textContent = s.theory.desc;
+  mainFragment.querySelector('#theory-formula').textContent = s.theory.formula;
+
+  const distParamHost = mainFragment.querySelector('#dist-param-controls');
+  const visParamHost = mainFragment.querySelector('#vis-param-controls');
+  s.params.forEach(p => distParamHost.appendChild(createSliderElement(p, 'updateParam')));
+  s.params.forEach(p => visParamHost.appendChild(createSliderElement(p, 'updateVisParam')));
+
+  $('main').replaceChildren(mainFragment);
 
   if (activeTab === 'distribution') {
     chartCanvas = $('chart');
@@ -838,7 +590,9 @@ window.addEventListener('resize', () => {
   setupVisualCanvas();
 });
 
-init();
-</script>
-</body>
-</html>
+async function bootstrap() {
+  await templateLoader.loadAllTemplates();
+  init();
+}
+
+bootstrap();
