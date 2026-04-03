@@ -20,6 +20,58 @@
   <div class="main" id="main"></div>
 </div>
 
+<!-- Same markup as js/templates/*.template.html — embedded so opening index.html directly (file://) works; fetch() is blocked there. -->
+<template id="main-template">
+  <div class="tab-bar">
+    <button class="tab" id="tab-distribution-btn" onclick="switchTab('distribution')">Distribution</button>
+    <button class="tab" id="tab-visual-btn" onclick="switchTab('visual')">Visual Simulation</button>
+  </div>
+
+  <div class="tab-content" id="tab-dist">
+    <div class="controls">
+      <div id="dist-param-controls"></div>
+      <div class="cg"><label>Speed</label><div style="display:flex;align-items:center;gap:8px">
+        <input type="range" min="1" max="100" value="10" id="spd"
+          oninput="$('spd-v').textContent=this.value">
+        <span class="vd" id="spd-v">10</span></div></div>
+      <button class="btn" id="run-btn" onclick="toggleDistribution()">▶ Run</button>
+      <button class="btn sec" onclick="resetAll()">Reset</button>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-info"><span id="scenario-name"></span> · <span id="scenario-dist"></span> · Samples: <span id="sc">0</span></div>
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="stats-row">
+      <div class="sc"><div class="sl">Mean</div><div class="sv" id="s-mean">—</div></div>
+      <div class="sc"><div class="sl">Std Dev</div><div class="sv" id="s-std">—</div></div>
+      <div class="sc"><div class="sl">Median</div><div class="sv" id="s-med">—</div></div>
+      <div class="sc"><div class="sl">Samples</div><div class="sv" id="s-n">0</div></div>
+    </div>
+    <div class="theory">
+      <h3 id="theory-title"></h3><p id="theory-desc"></p><div class="f" id="theory-formula"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-vis">
+    <div class="vis-area">
+      <div class="controls">
+        <div id="vis-param-controls"></div>
+        <button class="btn" onclick="runVisual()">▶ Simulate Once</button>
+        <button class="btn sec" id="auto-btn" onclick="toggleAuto()">Auto</button>
+      </div>
+      <div class="vis-stage"><canvas id="vcanvas"></canvas></div>
+      <div class="vis-result" id="vr"></div>
+      <div class="vis-probability" id="vp"></div>
+    </div>
+  </div>
+</template>
+
+<template id="slider-template">
+  <div class="cg"><label></label><div style="display:flex;align-items:center;gap:8px">
+    <input type="range">
+    <span class="vd"></span></div></div>
+</template>
+
 <script src="js/math.js"></script>
 <script src="js/helpers.js"></script>
 <script src="js/scenarios.js"></script>

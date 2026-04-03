@@ -2,6 +2,14 @@ const templateLoader = {
   cache: {},
 
   async loadAllTemplates() {
+    const domMain = document.getElementById('main-template');
+    const domSlider = document.getElementById('slider-template');
+    if (domMain && domSlider) {
+      this.cache.main = domMain;
+      this.cache.slider = domSlider;
+      return;
+    }
+
     const entries = [
       ['main', 'js/templates/main.template.html'],
       ['slider', 'js/templates/slider.template.html'],
