@@ -9,10 +9,15 @@ let visCanvas, visCtx, visAnimating = false, autoMode = false, autoTimer = null;
 
 // ── Slider HTML helper ──
 function sliderHTML(p, onChange) {
-  return `<div class="cg"><label>${p.label}</label><div style="display:flex;align-items:center;gap:8px">
-    <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${params[p.key]}"
-      oninput="${onChange}('${p.key}',this.value);this.nextElementSibling.textContent=this.value">
-    <span class="vd">${params[p.key]}</span></div></div>`;
+  return templateLoader.render(templateLoader.getTemplate('slider'), {
+    paramLabel: p.label,
+    paramMin: p.min,
+    paramMax: p.max,
+    paramStep: p.step,
+    paramKey: p.key,
+    onChangeHandler: onChange,
+    currentValue: params[p.key],
+  });
 }
 
 // ── Init & navigation ──
@@ -48,49 +53,21 @@ function resetHistogram() {
 // ── Main render ──
 function renderMain() {
   const s = current;
-  $('main').innerHTML = `
-    <div class="tab-bar">
-      <button class="tab ${activeTab === 'distribution' ? 'active' : ''}" onclick="switchTab('distribution')">Distribution</button>
-      <button class="tab ${activeTab === 'visual' ? 'active' : ''}" onclick="switchTab('visual')">Visual Simulation</button>
-    </div>
-
-    <div class="tab-content ${activeTab === 'distribution' ? 'active' : ''}" id="tab-dist">
-      <div class="controls">
-        ${s.params.map(p => sliderHTML(p, 'updateParam')).join('')}
-        <div class="cg"><label>Speed</label><div style="display:flex;align-items:center;gap:8px">
-          <input type="range" min="1" max="100" value="10" id="spd"
-            oninput="$('spd-v').textContent=this.value">
-          <span class="vd" id="spd-v">10</span></div></div>
-        <button class="btn" id="run-btn" onclick="toggleDistribution()">▶ Run</button>
-        <button class="btn sec" onclick="resetAll()">Reset</button>
-      </div>
-      <div class="chart-wrap">
-        <div class="chart-info">${s.name} · <span>${s.dist}</span> · Samples: <span id="sc">0</span></div>
-        <canvas id="chart"></canvas>
-      </div>
-      <div class="stats-row">
-        <div class="sc"><div class="sl">Mean</div><div class="sv" id="s-mean">—</div></div>
-        <div class="sc"><div class="sl">Std Dev</div><div class="sv" id="s-std">—</div></div>
-        <div class="sc"><div class="sl">Median</div><div class="sv" id="s-med">—</div></div>
-        <div class="sc"><div class="sl">Samples</div><div class="sv" id="s-n">0</div></div>
-      </div>
-      <div class="theory">
-        <h3>${s.theory.title}</h3><p>${s.theory.desc}</p><div class="f">${s.theory.formula}</div>
-      </div>
-    </div>
-
-    <div class="tab-content ${activeTab === 'visual' ? 'active' : ''}" id="tab-vis">
-      <div class="vis-area">
-        <div class="controls">
-          ${s.params.map(p => sliderHTML(p, 'updateVisParam')).join('')}
-          <button class="btn" onclick="runVisual()">▶ Simulate Once</button>
-          <button class="btn sec" id="auto-btn" onclick="toggleAuto()">Auto</button>
-        </div>
-        <div class="vis-stage"><canvas id="vcanvas"></canvas></div>
-        <div class="vis-result" id="vr"></div>
-        <div class="vis-probability" id="vp"></div>
-      </div>
-    </div>`;
+  const distributionControlsHTML = s.params.map(p => sliderHTML(p, 'updateParam')).join('');
+  const visualControlsHTML = s.params.map(p => sliderHTML(p, 'updateVisParam')).join('');
+  $('main').innerHTML = templateLoader.render(templateLoader.getTemplate('main'), {
+    distributionTabClass: activeTab === 'distribution' ? 'active' : '',
+    visualTabClass: activeTab === 'visual' ? 'active' : '',
+    distributionContentClass: activeTab === 'distribution' ? 'active' : '',
+    visualContentClass: activeTab === 'visual' ? 'active' : '',
+    distributionControlsHTML,
+    visualControlsHTML,
+    scenarioName: s.name,
+    scenarioDist: s.dist,
+    theoryTitle: s.theory.title,
+    theoryDesc: s.theory.desc,
+    theoryFormula: s.theory.formula,
+  });
 
   if (activeTab === 'distribution') {
     chartCanvas = $('chart');
@@ -599,4 +576,9 @@ window.addEventListener('resize', () => {
   setupVisualCanvas();
 });
 
-init();
+async function bootstrap() {
+  await templateLoader.loadAllTemplates();
+  init();
+}
+
+bootstrap();

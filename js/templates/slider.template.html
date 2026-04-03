@@ -1,0 +1,4 @@
+<div class="cg"><label>{{paramLabel}}</label><div style="display:flex;align-items:center;gap:8px">
+  <input type="range" min="{{paramMin}}" max="{{paramMax}}" step="{{paramStep}}" value="{{currentValue}}"
+    oninput="{{onChangeHandler}}('{{paramKey}}',this.value);this.nextElementSibling.textContent=this.value">
+  <span class="vd">{{currentValue}}</span></div></div>
