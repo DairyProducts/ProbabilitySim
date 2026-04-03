@@ -6,6 +6,8 @@ let running = false, animFrame = null;
 let chartCanvas, chartCtx;
 let activeTab = 'distribution';
 let visCanvas, visCtx, visAnimating = false, autoMode = false, autoTimer = null;
+let visualRunId = 0, visualFrameId = null;
+const visualTimeouts = new Set();
 
 // ── Slider template helper ──
 function createSliderElement(p, onChange) {
@@ -37,6 +39,7 @@ function init() {
 function selectScenario(id) {
   stopDistribution();
   stopAuto();
+  cancelVisualAnimation();
   current = scenarios.find(s => s.id === id);
   params = {};
   current.params.forEach(p => params[p.key] = p.def);
@@ -46,6 +49,9 @@ function selectScenario(id) {
 }
 
 function switchTab(tab) {
+  stopDistribution();
+  stopAuto();
+  cancelVisualAnimation();
   activeTab = tab;
   renderMain();
 }
@@ -126,7 +132,10 @@ function startDistribution() {
 
 function stopDistribution() {
   running = false;
-  if (animFrame) cancelAnimationFrame(animFrame);
+  if (animFrame) {
+    cancelAnimationFrame(animFrame);
+    animFrame = null;
+  }
   const btn = $('run-btn');
   if (btn) { btn.textContent = '▶ Run'; btn.classList.remove('on'); }
 }
@@ -217,17 +226,20 @@ function drawChart() {
 
 function updateStats() {
   if (!samples.length) return;
+  const meanEl = $('s-mean'), stdEl = $('s-std'), medEl = $('s-med'), nEl = $('s-n'), scEl = $('sc');
+  if (!meanEl || !stdEl || !medEl || !nEl || !scEl) return;
+
   const n = samples.length;
   const mean = samples.reduce((a, b) => a + b, 0) / n;
   const std = Math.sqrt(samples.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
   const sorted = [...samples].sort((a, b) => a - b);
   const median = n % 2 === 0 ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 : sorted[Math.floor(n / 2)];
 
-  $('s-mean').textContent = mean.toFixed(2);
-  $('s-std').textContent = std.toFixed(2);
-  $('s-med').textContent = median.toFixed(2);
-  $('s-n').textContent = n.toLocaleString();
-  $('sc').textContent = n.toLocaleString();
+  meanEl.textContent = mean.toFixed(2);
+  stdEl.textContent = std.toFixed(2);
+  medEl.textContent = median.toFixed(2);
+  nEl.textContent = n.toLocaleString();
+  scEl.textContent = n.toLocaleString();
 }
 
 // ── Visual simulation tab ──
@@ -259,30 +271,78 @@ function toggleAuto() {
 
 function stopAuto() {
   autoMode = false;
-  if (autoTimer) clearTimeout(autoTimer);
+  if (autoTimer) {
+    clearTimeout(autoTimer);
+    autoTimer = null;
+  }
   const btn = $('auto-btn');
   if (btn) { btn.classList.remove('on'); btn.textContent = 'Auto'; }
 }
 
 function autoLoop() {
   if (!autoMode) return;
+  if (visAnimating) {
+    autoTimer = setTimeout(autoLoop, 120);
+    return;
+  }
   runVisual(() => { autoTimer = setTimeout(autoLoop, 500); });
 }
 
 function runVisual(callback) {
   if (visAnimating) return;
   visAnimating = true;
-  $('vp').textContent = '';
+  visualRunId++;
+  clearVisualSchedulers();
+  const runId = visualRunId;
+  const probEl = $('vp');
+  if (probEl) probEl.textContent = '';
   const animFn = visualAnimations[current.id];
-  if (animFn) animFn(callback);
+  if (animFn) animFn(runId, callback);
   else { visAnimating = false; if (callback) callback(); }
 }
 
-function finishVisual(resultText, probText, callback) {
-  $('vr').textContent = resultText;
-  $('vp').textContent = probText;
+function finishVisual(resultText, probText, callback, runId) {
+  if (runId !== visualRunId) return;
+  const resultEl = $('vr');
+  const probEl = $('vp');
+  if (resultEl) resultEl.textContent = resultText;
+  if (probEl) probEl.textContent = probText;
   visAnimating = false;
+  clearVisualSchedulers();
   if (callback) callback();
+}
+
+function scheduleVisualTimeout(fn, delay, runId) {
+  const id = setTimeout(() => {
+    visualTimeouts.delete(id);
+    if (runId !== visualRunId) return;
+    fn();
+  }, delay);
+  visualTimeouts.add(id);
+  return id;
+}
+
+function scheduleVisualFrame(fn, runId) {
+  visualFrameId = requestAnimationFrame(ts => {
+    if (runId !== visualRunId) return;
+    fn(ts);
+  });
+  return visualFrameId;
+}
+
+function clearVisualSchedulers() {
+  if (visualFrameId) {
+    cancelAnimationFrame(visualFrameId);
+    visualFrameId = null;
+  }
+  visualTimeouts.forEach(id => clearTimeout(id));
+  visualTimeouts.clear();
+}
+
+function cancelVisualAnimation() {
+  visualRunId++;
+  clearVisualSchedulers();
+  visAnimating = false;
 }
 
 // ── Grid layout helper (used by coins, factory, dice) ──
@@ -303,7 +363,7 @@ function gridLayout(count, canvasW, canvasH, maxSize, minSize) {
 
 // ── Visual animations ──
 const visualAnimations = {
-  coin(cb) {
+  coin(runId, cb) {
     const ctx = visCtx, w = visCanvas.width, h = visCanvas.height;
     const n = params.n || 10, p = params.p || 0.5;
     const results = Array.from({ length: n }, () => Math.random() < p ? 'H' : 'T');
@@ -343,16 +403,16 @@ const visualAnimations = {
       if (revealed >= n) {
         ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 26px "Source Serif 4"'; ctx.textAlign = 'center';
         ctx.fillText(`${heads} head${heads !== 1 ? 's' : ''} out of ${n}`, w / 2, h - 28);
-        finishVisual(`${heads} heads`, `P(X = ${heads}) = ${formatProb(binomialPMF(heads, n, p))}`, cb);
+        finishVisual(`${heads} heads`, `P(X = ${heads}) = ${formatProb(binomialPMF(heads, n, p))}`, cb, runId);
         return;
       }
       revealed = Math.min(revealed + perFrame, n);
-      setTimeout(frame, delay);
+      scheduleVisualTimeout(frame, delay, runId);
     }
     frame();
   },
 
-  wait(cb) {
+  wait(runId, cb) {
     const ctx = visCtx, w = visCanvas.width, h = visCanvas.height;
     const lam = params.lambda || 0.5;
     const waitTime = -Math.log(1 - Math.random()) / lam;
@@ -413,15 +473,15 @@ const visualAnimations = {
         ctx.fillStyle = '#22c55e'; ctx.font = 'bold 26px "Source Serif 4"';
         ctx.fillText('☕ Ready!', w / 2, h - 24);
         const pLonger = Math.exp(-lam * waitTime);
-        finishVisual(`Wait: ${waitTime.toFixed(2)} min`, `P(wait > ${waitTime.toFixed(2)} min) = ${formatProb(pLonger)}`, cb);
+        finishVisual(`Wait: ${waitTime.toFixed(2)} min`, `P(wait > ${waitTime.toFixed(2)} min) = ${formatProb(pLonger)}`, cb, runId);
         return;
       }
-      requestAnimationFrame(frame);
+      scheduleVisualFrame(frame, runId);
     }
-    requestAnimationFrame(frame);
+    scheduleVisualFrame(frame, runId);
   },
 
-  height(cb) {
+  height(runId, cb) {
     const ctx = visCtx, w = visCanvas.width, h = visCanvas.height;
     const mu = params.mu || 170, sigma = params.sigma || 7;
     const val = boxMuller(mu, sigma);
@@ -473,16 +533,17 @@ const visualAnimations = {
         finishVisual(
           `Height: ${val.toFixed(1)} cm`,
           `${sign}${z.toFixed(2)}σ from mean · ${formatProb(1 - pWithin)} of people are further from the mean`,
-          cb
+          cb,
+          runId
         );
         return;
       }
-      requestAnimationFrame(frame);
+      scheduleVisualFrame(frame, runId);
     }
-    requestAnimationFrame(frame);
+    scheduleVisualFrame(frame, runId);
   },
 
-  defects(cb) {
+  defects(runId, cb) {
     const ctx = visCtx, w = visCanvas.width, h = visCanvas.height;
     const lam = params.lambda || 4;
     let L = Math.exp(-lam), k = 0, pr = 1;
@@ -527,18 +588,18 @@ const visualAnimations = {
       if (revealed >= total) {
         ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 26px "Source Serif 4"'; ctx.textAlign = 'center';
         ctx.fillText(`${defectCount} defect${defectCount !== 1 ? 's' : ''} found`, w / 2, h - 24);
-        finishVisual(`${defectCount} defects`, `P(X = ${defectCount}) = ${formatProb(poissonPMF(defectCount, lam))}`, cb);
+        finishVisual(`${defectCount} defects`, `P(X = ${defectCount}) = ${formatProb(poissonPMF(defectCount, lam))}`, cb, runId);
         return;
       }
       revealed += 2;
-      setTimeout(frame, 35);
+      scheduleVisualTimeout(frame, 35, runId);
     }
     frame();
   },
 
-  dice(cb) {
+  dice(runId, cb) {
     const ctx = visCtx, w = visCanvas.width, h = visCanvas.height;
-    const n = Math.min(params.n || 5, 12), sides = params.sides || 6;
+    const n = Math.max(1, Math.floor(params.n || 5)), sides = params.sides || 6;
     const results = Array.from({ length: n }, () => Math.floor(Math.random() * sides) + 1);
     const total = results.reduce((a, b) => a + b, 0);
 
@@ -573,12 +634,12 @@ const visualAnimations = {
       if (settled) {
         ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 26px "Source Serif 4"'; ctx.textAlign = 'center';
         ctx.fillText(`${results.join(' + ')} = ${total}`, w / 2, h - 24);
-        finishVisual(`Sum: ${total}`, `P(sum = ${total}) = ${formatProb(diceSumProb(total, n, sides))}`, cb);
+        finishVisual(`Sum: ${total}`, `P(sum = ${total}) = ${formatProb(diceSumProb(total, n, sides))}`, cb, runId);
         return;
       }
       rollFrame++;
       if (rollFrame >= 16) settled = true;
-      setTimeout(frame, 55);
+      scheduleVisualTimeout(frame, 55, runId);
     }
     frame();
   },
