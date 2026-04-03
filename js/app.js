@@ -7,17 +7,23 @@ let chartCanvas, chartCtx;
 let activeTab = 'distribution';
 let visCanvas, visCtx, visAnimating = false, autoMode = false, autoTimer = null;
 
-// ── Slider HTML helper ──
-function sliderHTML(p, onChange) {
-  return templateLoader.render(templateLoader.getTemplate('slider'), {
-    paramLabel: p.label,
-    paramMin: p.min,
-    paramMax: p.max,
-    paramStep: p.step,
-    paramKey: p.key,
-    onChangeHandler: onChange,
-    currentValue: params[p.key],
-  });
+// ── Slider template helper ──
+function createSliderElement(p, onChange) {
+  const fragment = templateLoader.cloneTemplate('slider');
+  const root = fragment.querySelector('.cg');
+  const label = root.querySelector('label');
+  const input = root.querySelector('input[type="range"]');
+  const value = root.querySelector('.vd');
+
+  label.textContent = p.label;
+  input.min = p.min;
+  input.max = p.max;
+  input.step = p.step;
+  input.value = params[p.key];
+  input.setAttribute('oninput', `${onChange}('${p.key}',this.value);this.nextElementSibling.textContent=this.value`);
+  value.textContent = params[p.key];
+
+  return root;
 }
 
 // ── Init & navigation ──
@@ -53,21 +59,29 @@ function resetHistogram() {
 // ── Main render ──
 function renderMain() {
   const s = current;
-  const distributionControlsHTML = s.params.map(p => sliderHTML(p, 'updateParam')).join('');
-  const visualControlsHTML = s.params.map(p => sliderHTML(p, 'updateVisParam')).join('');
-  $('main').innerHTML = templateLoader.render(templateLoader.getTemplate('main'), {
-    distributionTabClass: activeTab === 'distribution' ? 'active' : '',
-    visualTabClass: activeTab === 'visual' ? 'active' : '',
-    distributionContentClass: activeTab === 'distribution' ? 'active' : '',
-    visualContentClass: activeTab === 'visual' ? 'active' : '',
-    distributionControlsHTML,
-    visualControlsHTML,
-    scenarioName: s.name,
-    scenarioDist: s.dist,
-    theoryTitle: s.theory.title,
-    theoryDesc: s.theory.desc,
-    theoryFormula: s.theory.formula,
-  });
+  const mainFragment = templateLoader.cloneTemplate('main');
+
+  const distButton = mainFragment.querySelector('#tab-distribution-btn');
+  const visualButton = mainFragment.querySelector('#tab-visual-btn');
+  const distTab = mainFragment.querySelector('#tab-dist');
+  const visualTab = mainFragment.querySelector('#tab-vis');
+  distButton.classList.toggle('active', activeTab === 'distribution');
+  visualButton.classList.toggle('active', activeTab === 'visual');
+  distTab.classList.toggle('active', activeTab === 'distribution');
+  visualTab.classList.toggle('active', activeTab === 'visual');
+
+  mainFragment.querySelector('#scenario-name').textContent = s.name;
+  mainFragment.querySelector('#scenario-dist').textContent = s.dist;
+  mainFragment.querySelector('#theory-title').textContent = s.theory.title;
+  mainFragment.querySelector('#theory-desc').textContent = s.theory.desc;
+  mainFragment.querySelector('#theory-formula').textContent = s.theory.formula;
+
+  const distParamHost = mainFragment.querySelector('#dist-param-controls');
+  const visParamHost = mainFragment.querySelector('#vis-param-controls');
+  s.params.forEach(p => distParamHost.appendChild(createSliderElement(p, 'updateParam')));
+  s.params.forEach(p => visParamHost.appendChild(createSliderElement(p, 'updateVisParam')));
+
+  $('main').replaceChildren(mainFragment);
 
   if (activeTab === 'distribution') {
     chartCanvas = $('chart');

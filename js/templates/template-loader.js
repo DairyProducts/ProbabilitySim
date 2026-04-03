@@ -12,19 +12,23 @@ const templateLoader = {
       if (!response.ok) {
         throw new Error(`Failed to load template: ${path}`);
       }
-      this.cache[name] = await response.text();
+      const html = await response.text();
+      const container = document.createElement('div');
+      container.innerHTML = html.trim();
+      const template = container.querySelector('template');
+      if (!template) {
+        throw new Error(`Template tag not found in: ${path}`);
+      }
+      this.cache[name] = template;
     }));
   },
 
-  getTemplate(name) {
-    return this.cache[name] || '';
-  },
-
-  render(template, values) {
-    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-      const value = values[key];
-      return value === undefined || value === null ? '' : String(value);
-    });
+  cloneTemplate(name) {
+    const template = this.cache[name];
+    if (!template) {
+      throw new Error(`Template not loaded: ${name}`);
+    }
+    return template.content.cloneNode(true);
   },
 };
 
